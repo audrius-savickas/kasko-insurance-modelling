@@ -25,6 +25,8 @@ procentais, kad mašiną pristatys paprastas klientas, TR - atsitiktinis dydis v
 vienam darbuotojui sutvarkyti atvežtą mašiną (tarkime, jog 1<= TR <=5*K
 */
 
+// TODO: Atlyginimai 1 procese daug mazesni
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -66,7 +68,8 @@ int getFreeEmployeeNumber(bool dirbantysDarbuotojai[]);
 void printFixingQueue(PriorityQueue *eile);
 void countEmployeeWage(PriorityQueue *eile, bool overtime);
 void outputResults();
-bool checkIfOvertime();
+void removeNonVIP(PriorityQueue **taisymoEile, PriorityQueue **laukimoEile, int *uzimtiDarbuotojai, bool dirbantysDarbuotojai[]);
+bool checkIfOvertime(PriorityQueue **taisymoEile, PriorityQueue **laukimoEile);
 
 int main () {
     output = fopen("protokolas.txt", "w");
@@ -125,28 +128,27 @@ void procesas1() {
     createEmptyPQueue(&taisymoEile, N*5);
     createEmptyPQueue(&laukimoEile, N*5);
 
-
     fprintf(output, "PROCESAS 1: VIP KLIENTAI IR PAPRASTI KLIENTAI\n\n");
     int darboLaikas = N;
     for (int i = 0; i < darboLaikas; i++) {
-        fprintf(output, "T = %d min.\n", i);
+        if (!overtime) fprintf(output, "T = %d min.\n", i);
+        else if (overtime && checkIfOvertime(&taisymoEile, &laukimoEile)) fprintf(output, "T = %d min. Viršvalandžiai.\n", i);
         int skaicius = rand() % 100 + 1;
 
+        // JEIGU DIRBA VIRSVALANDZIUS
         if (overtime) {
+            
             bool check = checkIfOvertime(&taisymoEile, &laukimoEile);
-            printFixingQueue(taisymoEile);
-            outputWaitingQueue(laukimoEile, laukiaPaprasti+laukiaVIP);
+            //if (i == 102) check = false;
+
             if (check) {
-                printf("YES");
+                //printFixingQueue(taisymoEile);
+                darboLaikas++;
             }
             else {
-                printf("NO");
+                overtime = false;
+                break;
             }
-        }
-
-        if (i == darboLaikas - 1 && !overtime) {
-            overtime = true;
-            darboLaikas++;
         }
 
         // ATEJO VIP KLIENTAS
@@ -229,6 +231,16 @@ void procesas1() {
         // fprintf(output, "UZimti darbuotojai: %d", uzimtiDarbuotojai);
         countEmployeeWage(taisymoEile, overtime);
         fprintf(output, "\n");
+
+        // Patikrinti ar baigesi darbo diena ir yra nebaigtu VIP
+        if (i == N - 1 && !overtime) {
+            if (checkIfOvertime(&taisymoEile, &laukimoEile)) {
+                overtime = true;
+                darboLaikas++;
+                laukiaPaprasti = 0;
+                removeNonVIP(&taisymoEile, &laukimoEile, &uzimtiDarbuotojai, dirbantysDarbuotojai);
+            }
+        }
     }
 
     pajamos1 = pajamos;
@@ -236,6 +248,46 @@ void procesas1() {
     sutaisytiPaprasti1 = sutaisytiPaprasti;
     deletePQueue(&laukimoEile);
     deletePQueue(&taisymoEile);
+}
+
+void removeNonVIP(PriorityQueue **taisymoEile, PriorityQueue **laukimoEile, int *uzimtiDarbuotojai, bool dirbantysDarbuotojai[]){
+    PriorityQueue *p_current = (*taisymoEile)->p_next;
+    PriorityQueue *p_previous = *taisymoEile;
+    Data value;
+    while (p_current) {
+        value = p_current->value;
+        if (!value.VIP) {
+            (*uzimtiDarbuotojai)--;
+            dirbantysDarbuotojai[value.darbuotojoNr-1] = false;
+            if (p_current == (*taisymoEile)->p_next) {
+                (*taisymoEile)->p_next = p_current->p_next;
+            }
+            else {
+                p_previous->p_next = p_current->p_next;
+                p_current = p_current->p_next;
+                continue;
+            }
+        }
+        p_previous = p_current;
+        p_current = p_current->p_next;
+    }
+    p_current = (*laukimoEile)->p_next;
+    p_previous = *laukimoEile;
+    while (p_current) {
+        value = p_current->value;
+        if (!value.VIP) {
+            if (p_current == (*taisymoEile)->p_next) {
+                (*taisymoEile)->p_next = p_current->p_next;
+            }
+            else {
+                p_previous->p_next = p_current->p_next;
+                p_current = p_current->p_next;
+                continue;
+            }
+        }
+        p_previous = p_current;
+        p_current = p_current->p_next;
+    }
 }
 
 void procesas2() {
@@ -330,6 +382,7 @@ bool checkIfOvertime(PriorityQueue **taisymoEile, PriorityQueue **laukimoEile) {
             return true;
         }
     }
+    return false;
 }
 
 bool checkIfFixed(PriorityQueue **eile, int currTime, bool dirbantysDarbuotojai[], int *uzimtiDarbuotojai) {
@@ -420,6 +473,20 @@ int getFreeEmployeeNumber(bool dirbantysDarbuotojai[]) {
     }
 }
 
+void countEmployeeWage(PriorityQueue *eile, bool overtime) {
+    PriorityQueue *p_current = eile->p_next;
+    Data value;
+    algos += U * K;
+    if (overtime) {
+        while (p_current) {
+            value = p_current->value;
+            //algos += U;
+            p_current = p_current->p_next;
+        }
+    }
+
+}
+
 void printFixingQueue(PriorityQueue *eile) {
     PriorityQueue *p_current = eile->p_next;
     Data value;
@@ -436,17 +503,4 @@ void printFixingQueue(PriorityQueue *eile) {
         p_current = p_current->p_next;
     }
     fprintf(output, "\n");
-}
-
-void countEmployeeWage(PriorityQueue *eile, bool overtime) {
-    PriorityQueue *p_current = eile->p_next;
-    Data value;
-    algos += U * K;
-    while (p_current) {
-        value = p_current->value;
-        if (overtime) {
-            algos += U;
-        }
-        p_current = p_current->p_next;
-    }
 }
