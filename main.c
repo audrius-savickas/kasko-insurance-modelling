@@ -33,12 +33,13 @@ vienam darbuotojui sutvarkyti atvežtą mašiną (tarkime, jog 1<= TR <=5*K
 #include "priority_queue.c"
 
 #define A 1000    // VIP sumoka
-#define A1 200    // Servisas papildomai gauna
+#define A1 150    // Servisas papildomai gauna
 #define B A-A1    // Paprastas sumoka
-#define U 5       // Serviso darbuotojo valandine alga
-#define K 4       // Serviso darbuotoju skaicius
-#define T1 20     // Tikimybe kad masina atves VIP klientas
+#define U 10       // Serviso darbuotojo valandine alga
+#define K 10       // Serviso darbuotoju skaicius
+#define T1 30     // Tikimybe kad masina atves VIP klientas
 #define T2 70     // Tikimybe kad masina atves paprastas klientas
+#define N 300     // Servisas dirbs 60 laiko momentu
 int TR;           // Atvesta masina taisys valandu (1 <= TR <= 5*K)
 int vipN = 0, papN = 0;
 long int servisoPajamos = 0;
@@ -50,12 +51,12 @@ long int pajamos = 0;
 long int algos = 0;
 int sutaisytiPaprasti = 0;
 int sutaisytiVIP = 0;
+int outputCnt = 1;
 
 int sutaisytiPaprasti1 = 0, sutaisytiPaprasti2 = 0;
 long int pajamos1 = 0, pajamos2 = 0;
 long int algos1 = 0, algos2 = 0;
 
-#define N 100     // Servisas dirbs 60 laiko momentu
 
 FILE *output;     // Isvedimo failas
 
@@ -65,11 +66,12 @@ void procesas2();
 bool checkIfFixed(PriorityQueue **eile, int currTime, bool dirbantysDarbuotojai[], int *uzimtiDarbuotojai);
 void outputWaitingQueue(PriorityQueue *eile, int laukia);
 int getFreeEmployeeNumber(bool dirbantysDarbuotojai[]);
-void printFixingQueue(PriorityQueue *eile);
+void outputFixingQueue(PriorityQueue *eile, int fixN);
 void countEmployeeWage(PriorityQueue *eile, bool overtime);
 void outputResults();
 void removeNonVIP(PriorityQueue **taisymoEile, PriorityQueue **laukimoEile, int *uzimtiDarbuotojai, bool dirbantysDarbuotojai[]);
 bool checkIfOvertime(PriorityQueue **taisymoEile, PriorityQueue **laukimoEile);
+void printFixingQueue(PriorityQueue *eile, int fixN);
 
 int main () {
     output = fopen("protokolas.txt", "w");
@@ -87,17 +89,23 @@ int main () {
 void outputResults() {
     fprintf(output, "\nIII DALIS - REZULTATAI.\n\n");
     fprintf(output, "Procesas 1.\n");
-    fprintf(output, "\tSutaisytos paprastų klientų mašinos: %d mašinos.\n", sutaisytiPaprasti1);
-    fprintf(output, "\tSutaisytos VIP klientų mašinos: %d mašinos.\n", sutaisytiVIP);
-    fprintf(output, "\tPajamos: %6d€.\n", pajamos1);
-    fprintf(output, "\tDarbuotojams sumokėta alga: %6d€.\n", algos1);
-    fprintf(output, "\tPelnas: %6d€.\n", pajamos1-algos1);
+    fprintf(output, "\t1)Sutaisytos paprastų klientų mašinos: %d mašinos.\n", sutaisytiPaprasti1);
+    fprintf(output, "\t2)Sutaisytos VIP klientų mašinos: %d mašinos.\n", sutaisytiVIP);
+    fprintf(output, "\t3)Pajamos: %6d€.\n", pajamos1);
+    fprintf(output, "\t4)Darbuotojams sumokėta alga: %6d€.\n", algos1);
+    fprintf(output, "\t5)Pelnas: %6d€.\n", pajamos1-algos1);
     fprintf(output, "Procesas 2.\n");
-    fprintf(output, "\tSutaisytos paprastų klientų mašinos: %d mašinos.\n", sutaisytiPaprasti2);
-    fprintf(output, "\tSutaisytos VIP klientų mašinos: %d mašinos.\n", 0);
-    fprintf(output, "\tPajamos: %6d€.\n", pajamos2);
-    fprintf(output, "\tDarbuotojams sumokėta alga: %6d€.\n", algos2);
-    fprintf(output, "\tPelnas: %6d€.\n", pajamos2-algos2);
+    fprintf(output, "\t1)Sutaisytos paprastų klientų mašinos: %d mašinos.\n", sutaisytiPaprasti2);
+    fprintf(output, "\t2)Sutaisytos VIP klientų mašinos: %d mašinos.\n", 0);
+    fprintf(output, "\t3)Pajamos: %6d€.\n", pajamos2);
+    fprintf(output, "\t4)Darbuotojams sumokėta alga: %6d€.\n", algos2);
+    fprintf(output, "\t5)Pelnas: %6d€.\n\n", pajamos2-algos2);
+    if (pajamos1-algos1 > pajamos2-algos2) {
+        fprintf(output, "Šiame vykdyme pelningesnis yra Procesas 1 negu Procesas 2.\n");
+    }
+    else {
+        fprintf(output, "Šiame vykdyme pelningesnis yra Procesas 2 negu Procesas 1.\n");
+    }
 }
 
 void outputStartData() {
@@ -106,16 +114,23 @@ void outputStartData() {
     fprintf(output, "Kasko draudimas/autoservisas (ADT: prioritetinė eilė, ilgas sveikas skaičius). Procesas 1.\nKlientas draudžiasi mašiną kasko draudimu įmonėje, kuri turi bendradarbiavimo sutartį su autoservisu.\nTokiu atveju frančizė (minimalus kliento sumokamas mokestis įvykus avarijai, kurį jis turi sumokėti\npats) yra A litų dydžio, iš kurių A1 atitenka servisui dėl bendradarbiavimo sutarties kaip priedas, ir\n");
     fprintf(output, "klientas laikomas VIP klientu. Tokie klientai servise turi pirmumo teisę, ir jų mašinos yra tvarkomos\npirmiausiai (jeigu reikia dirbant netgi viršvalandžius - VIP kliento mašina turi būti pradedama tvarkyti\nnuo pristatymo akimirkos nenutrūkstamai iki pat jos sutvarkymo, t.y. per vieną dieną). Už\nviršvalandžius darbuotojams reikia mokėti dvigubai. Procesas 2. Klientas draudžiasi paprastu kasko\n");
     fprintf(output, "draudimu, kurio frančizė yra B litų (B=A-A1) ir servisas už tai papildomų pinigų negauna, bet nereikia dirbti ir viršvalandžių, kurie kainuoja brangiau.\nPamodeliuoti, kokia verslo logika servisui naudingiausia: turėti kuo daugiau bendradarbiavimo sutarčių, ar dirbti visai be jų.\n");
-    fprintf(output, "Modelio parametrai: minėti dydžiai A, A1 ir B. Taip pat: U – serviso darbuotojo valandinė alga, K - darbuotojų skaičius.\nKiti naudotini dydžiai: T1 - tikimybė procentais kad mašiną pristatys VIP klientas, T2 - tikimybė procentais,\nkad mašiną pristatys paprastas klientas, TR - atsitiktinis dydis valandomis, kurio reikia vienam darbuotojui sutvarkyti atvežtą mašiną\n(tarkime, jog 1<= TR <=5*K).\n\n");
-    fprintf(output, "\nI DALIS - PRADINIAI DUOMENYS\n\n");
-    fprintf(output, "VIP kliento frančizė A = %d€.\n", A);
-    fprintf(output, "Servisas papildomai gauna A1 = %d€.\n", A1);
-    fprintf(output, "Paprasto kliento frančizė B = %d€.\n", B);
-    fprintf(output, "Serviso darbuotojo valandinė alga U = %d€.\n", U);
-    fprintf(output, "Serviso darbuotojų skaičius K = %d darbuotojai.\n", K);
-    fprintf(output, "Tikimybė, kad mašiną atveš VIP klientas T1 = %d\%%.\n", T1);
-    fprintf(output, "Tikimybė, kad mašiną atveš paprastas klientas T2 = %d%%.\n", T2);
-    fprintf(output, "Serviso darbo trukmė N = %d minučių.\n\n\n", N);
+    fprintf(output, "Modelio parametrai: minėti dydžiai A, A1 ir B. Taip pat: U – serviso darbuotojo valandinė alga, K - darbuotojų skaičius.\nKiti naudotini dydžiai: T1 - tikimybė procentais kad mašiną pristatys VIP klientas, T2 - tikimybė procentais,\nkad mašiną pristatys paprastas klientas, TR - atsitiktinis dydis valandomis, kurio reikia vienam darbuotojui sutvarkyti atvežtą mašiną (tarkime, jog 1<= TR <=5*K).\n\n");
+    fprintf(output, "Prielaidos:\n\n");
+    fprintf(output, "\t1) VIP klientai žymimi V1, V2, ...\n");
+    fprintf(output, "\t2) Paprasti klientai žymimi K1, K2, ...\n");
+    fprintf(output, "\t3) Darbuotojai žymimi D1, D2, ...\n");
+    fprintf(output, "\t4) 1 proceso metu, jeigu baigiasi darbo diena, tačiau yra nesutaisytų VIP klientų automobilių,\n");
+    fprintf(output, "\tjų automobiliai taisomi iki tol, kol yra sutaisyti visi VIP klientų automobiliai. Tokiu atveju\n");
+    fprintf(output, "\tpaprastų klientų automobiliai yra nebetaisomi, ir jų vietoje taisomi VIP klientų automobiliai.\n");
+    fprintf(output, "\n\nI DALIS - PRADINIAI DUOMENYS\n\n");
+    fprintf(output, "\t1) VIP kliento frančizė A = %d€.\n", A);
+    fprintf(output, "\t2) Servisas papildomai gauna A1 = %d€.\n", A1);
+    fprintf(output, "\t3) Paprasto kliento frančizė B = %d€.\n", B);
+    fprintf(output, "\t4) Serviso darbuotojo valandinė alga U = %d€.\n", U);
+    fprintf(output, "\t5) Serviso darbuotojų skaičius K = %d darbuotojai.\n", K);
+    fprintf(output, "\t6) Tikimybė, kad mašiną atveš VIP klientas T1 = %d\%%.\n", T1);
+    fprintf(output, "\t7) Tikimybė, kad mašiną atveš paprastas klientas T2 = %d%%.\n", T2);
+    fprintf(output, "\t8) Serviso darbo trukmė N = %d minučių.\n\n\n", N);
     fprintf(output, "II DALIS - VYKDYMAS\n\n");
 }
 
@@ -131,18 +146,19 @@ void procesas1() {
     fprintf(output, "PROCESAS 1: VIP KLIENTAI IR PAPRASTI KLIENTAI\n\n");
     int darboLaikas = N;
     for (int i = 0; i < darboLaikas; i++) {
-        if (!overtime) fprintf(output, "T = %d min.\n", i);
+        outputCnt = 1;
+        if (!overtime) fprintf(output, "T = %3d min.\n", i);
         else if (overtime && checkIfOvertime(&taisymoEile, &laukimoEile)) fprintf(output, "T = %d min. Viršvalandžiai.\n", i);
         int skaicius = rand() % 100 + 1;
 
         // JEIGU DIRBA VIRSVALANDZIUS
         if (overtime) {
+            //printFixingQueue(taisymoEile, uzimtiDarbuotojai);
             
             bool check = checkIfOvertime(&taisymoEile, &laukimoEile);
-            //if (i == 102) check = false;
 
             if (check) {
-                //printFixingQueue(taisymoEile);
+                //outputFixingQueue(taisymoEile, uzimtiDarbuotojai);
                 darboLaikas++;
             }
             else {
@@ -154,7 +170,8 @@ void procesas1() {
         // ATEJO VIP KLIENTAS
         if (skaicius <= T1 && !overtime) {
             vipN++;
-            fprintf(output, "\tAtvyko VIP klientas V%d.\n", vipN);
+            fprintf(output, "\t%d) ", outputCnt++);
+            fprintf(output, "Atvyko VIP klientas V%d.\n", vipN);
             value.klientoNr = vipN;
             value.VIP = true;
 
@@ -163,7 +180,7 @@ void procesas1() {
                 value.taisyti = rand() % (5*K) + 1;
 
                 insertPQueue(&laukimoEile, value, 2);
-                //printFixingQueue(laukimoEile);
+                //outputFixingQueue(laukimoEile);
             }
             else { // Yra laisvu darbuotoju
                 int darbuotojas = getFreeEmployeeNumber(dirbantysDarbuotojai);
@@ -172,7 +189,8 @@ void procesas1() {
                 value.darbuotojoNr = darbuotojas;
                 value.taisyti = rand() % (5*K) + 1;
                 value.pradejoTaisyti = i;
-                fprintf(output, "\tDarbuotojas D%d pradeda taisyti VIP kliento V%d mašiną.\n", darbuotojas, vipN);
+                fprintf(output, "\t%d) ", outputCnt++);
+                fprintf(output, "Darbuotojas D%d pradeda taisyti VIP kliento V%d mašiną.\n", darbuotojas, vipN);
                 insertPQueue(&taisymoEile, value, 2);
             }
 
@@ -180,7 +198,8 @@ void procesas1() {
         // ATEJO PAPRASTAS KLIENTAS
         else if (skaicius <= T2 && !overtime) {
             papN++;
-            fprintf(output, "\tAtvyko paprastas klientas K%d.\n", papN);
+            fprintf(output, "\t%d) ", outputCnt++);
+            fprintf(output, "Atvyko paprastas klientas K%d.\n", papN);
             value.klientoNr = papN;
             value.VIP = false;
             if (uzimtiDarbuotojai >= K) { // Nera laisvu darbuotoju
@@ -196,7 +215,8 @@ void procesas1() {
                 value.darbuotojoNr = darbuotojas;
                 value.taisyti = rand() % (5*K) + 1;
                 value.pradejoTaisyti = i;
-                fprintf(output, "\tDarbuotojas D%d pradeda taisyti paprasto kliento K%d mašiną.\n", darbuotojas, papN);
+                fprintf(output, "\t%d) ", outputCnt++);
+                fprintf(output, "Darbuotojas D%d pradeda taisyti paprasto kliento K%d mašiną.\n", darbuotojas, papN);
                 insertPQueue(&taisymoEile, value, 1);
             }
         }
@@ -212,25 +232,24 @@ void procesas1() {
                 
                 if (value.VIP) {
                     laukiaVIP--;
-                    fprintf(output, "\tDarbuotojas D%d pradeda taisyti VIP kliento V%d mašiną.\n", darbuotojas, value.klientoNr);
+                    fprintf(output, "\t%d) ", outputCnt++);
+                    fprintf(output, "Darbuotojas D%d pradeda taisyti VIP kliento V%d mašiną.\n", darbuotojas, value.klientoNr);
                     insertPQueue(&taisymoEile, value, 1);
                 }
                 else {
                     laukiaPaprasti--;
-                    fprintf(output, "\tDarbuotojas D%d pradeda taisyti paprasto kliento K%d mašiną.\n", darbuotojas, value.klientoNr);
+                    fprintf(output, "\t%d) ", outputCnt++);
+                    fprintf(output, "Darbuotojas D%d pradeda taisyti paprasto kliento K%d mašiną.\n", darbuotojas, value.klientoNr);
                     insertPQueue(&taisymoEile, value, 1);
                 }
                 removePQueue(&laukimoEile);
-                //printFixingQueue(taisymoEile);
-                //fprintf(output, "Darbuotojas D%d pradeda taisyti kliento K%d mašiną.\n", darbuotojas, value.klientoNr);
             }
-
         }
         outputWaitingQueue(laukimoEile, laukiaPaprasti+laukiaVIP);
-        // printFixingQueue(taisymoEile);
-        // fprintf(output, "UZimti darbuotojai: %d", uzimtiDarbuotojai);
+        outputFixingQueue(taisymoEile, uzimtiDarbuotojai);
+        // outputFixingQueue(taisymoEile);
+        //fprintf(output, "UZimti darbuotojai: %d", uzimtiDarbuotojai);
         countEmployeeWage(taisymoEile, overtime);
-        fprintf(output, "\n");
 
         // Patikrinti ar baigesi darbo diena ir yra nebaigtu VIP
         if (i == N - 1 && !overtime) {
@@ -294,8 +313,10 @@ void procesas2() {
     PriorityQueue *taisymoEile, *laukimoEile;
     bool dirbantysDarbuotojai[K] = {false};
     Data value;
+    algos = 0;
     pajamos = 0;
     sutaisytiPaprasti = 0;
+    laukiaVIP = 0;
     laukiaPaprasti = 0;
     uzimtiDarbuotojai = 0;
 
@@ -304,14 +325,15 @@ void procesas2() {
 
     //srand(time(NULL));
     int darboLaikas = N;
-    fprintf(output, "\n\nPROCESAS 2: TIK PAPRASTI KLIENTAI\n\n");
+    fprintf(output, "\nPROCESAS 2: TIK PAPRASTI KLIENTAI\n\n");
     for (int i = 0; i < darboLaikas; i++) {
-        //printf("\n%d\n", i);
-        fprintf(output, "T = %d min.\n", i);
+        outputCnt = 1;
+        fprintf(output, "T = %3d min.\n", i);
         int skaicius = rand() % 100 + 1;
         if (skaicius <= T2) {
             papN++;
-            fprintf(output, "\tAtvyko paprastas klientas K%d.\n", papN);
+            fprintf(output, "\t%d) ", outputCnt++);
+            fprintf(output, "Atvyko paprastas klientas K%d.\n", papN);
 
             if (uzimtiDarbuotojai >= K) { // Nera laisvu darbuotoju
                 laukiaPaprasti++;
@@ -330,13 +352,13 @@ void procesas2() {
                 value.taisyti = rand() % (5*K) + 1;
                 value.pradejoTaisyti = i;
                 value.VIP = false;
-                //printf("%d %d %d %d %d\n", value.klientoNr, value.darbuotojoNr, value.taisyti, value.pradejoTaisyti, value.VIP);
-                fprintf(output, "\tDarbuotojas D%d pradeda taisyti paprasto kliento K%d mašiną.\n", darbuotojas, papN);
+                fprintf(output, "\t%d) ", outputCnt++);
+                fprintf(output, "Darbuotojas D%d pradeda taisyti paprasto kliento K%d mašiną.\n", darbuotojas, papN);
                 insertPQueue(&taisymoEile, value, 1);
             }
         }
-        
         if (checkIfFixed(&taisymoEile, i, dirbantysDarbuotojai, &uzimtiDarbuotojai)) {
+            
             while (uzimtiDarbuotojai < K && laukiaPaprasti > 0) {
                 int darbuotojas = getFreeEmployeeNumber(dirbantysDarbuotojai);
                 uzimtiDarbuotojai++;
@@ -346,16 +368,18 @@ void procesas2() {
                 value.darbuotojoNr = darbuotojas;
                 value.pradejoTaisyti = i;
                 removePQueue(&laukimoEile);
-                fprintf(output, "\tDarbuotojas D%d pradeda taisyti paprasto kliento K%d mašiną.\n", darbuotojas, value.klientoNr);
+                fprintf(output, "\t%d) ", outputCnt++);
+                fprintf(output, "Darbuotojas D%d pradeda taisyti paprasto kliento K%d mašiną.\n", darbuotojas, value.klientoNr);
                 insertPQueue(&taisymoEile, value, 1);
                 //fprintf(output, "Darbuotojas D%d pradeda taisyti kliento K%d mašiną.\n", darbuotojas, value.klientoNr);
             }
         }
         outputWaitingQueue(laukimoEile, laukiaPaprasti);
+        outputFixingQueue(taisymoEile, uzimtiDarbuotojai);
+        
         //fprintf(output, "Uzimti darbuotojai: %d, ", uzimtiDarbuotojai);
         // fprintf(output, "Uzimti darbuotojai %d\n", uzimtiDarbuotojai);
         countEmployeeWage(taisymoEile, false);
-        fprintf(output, "\n");
     }
     pajamos2 = pajamos;
     algos2 = algos;
@@ -388,24 +412,26 @@ bool checkIfOvertime(PriorityQueue **taisymoEile, PriorityQueue **laukimoEile) {
 bool checkIfFixed(PriorityQueue **eile, int currTime, bool dirbantysDarbuotojai[], int *uzimtiDarbuotojai) {
     PriorityQueue *p_current = (*eile)->p_next;
     PriorityQueue *p_previous = *eile;
-    PriorityQueue *p_next = p_current->p_next;
     Data value;
     bool fixed = false;
+    
     while (p_current) {
+        
         value = p_current->value;
         if (currTime - value.pradejoTaisyti >= value.taisyti) {
             fixed = true;
             if (!value.VIP) {
                 sutaisytiPaprasti++;
                 pajamos += B;
-                fprintf(output, "\tPaprasto kliento K%d mašiną sutaisė darbuotojas D%d.\n", value.klientoNr, value.darbuotojoNr);
+                fprintf(output, "\t%d) ", outputCnt++);
+                fprintf(output, "Paprasto kliento K%d mašiną sutaisė darbuotojas D%d.\n", value.klientoNr, value.darbuotojoNr);
             }
             else {
                 sutaisytiVIP++;
                 pajamos += A;
-                fprintf(output, "\tVIP kliento V%d mašiną sutaisė darbuotojas D%d.\n", value.klientoNr, value.darbuotojoNr);
+                fprintf(output, "\t%d) ", outputCnt++);
+                fprintf(output, "VIP kliento V%d mašiną sutaisė darbuotojas D%d.\n", value.klientoNr, value.darbuotojoNr);
             }
-            p_next = p_current->p_next;
             //fprintf(output, "%d %d\n", p_previous->value.klientoNr, p_current->value.klientoNr);
             //fprintf(output, "DELETE %d", p_current->value.klientoNr);
             //fprintf(output, "prev next %u current %u\n", p_previous->p_next, p_current);
@@ -423,7 +449,7 @@ bool checkIfFixed(PriorityQueue **eile, int currTime, bool dirbantysDarbuotojai[
             
             dirbantysDarbuotojai[value.darbuotojoNr-1] = false;
             (*uzimtiDarbuotojai)--;
-            // printFixingQueue(*eile);
+            // outputFixingQueue(*eile);
             //fprintf(output, "Uzimti: %d\n", (*uzimtiDarbuotojai));
         }
         p_previous = p_current;
@@ -439,17 +465,24 @@ bool checkIfFixed(PriorityQueue **eile, int currTime, bool dirbantysDarbuotojai[
 void outputWaitingQueue(PriorityQueue *eile, int laukia) {
     PriorityQueue *p_current = eile->p_next;
     Data value;
+    fprintf(output, "\t%d) ", outputCnt++);
     if (laukia == 0) {
-        fprintf(output, "\tEilėje laukia 0 klientų. ");
+        fprintf(output, "Eilėje laukia 0 klientų. ");
     }
     else if (laukia == 1) {
-        fprintf(output, "\tEilėje laukia 1 klientas. ");
+        fprintf(output, "Eilėje laukia 1 klientas. ");
     }
     else if (laukia < 10){
-        fprintf(output, "\tEilėje laukia %d klientai. ", laukia);
+        fprintf(output, "Eilėje laukia %d klientai. ", laukia);
+    }
+    else if (laukia >= 10 && laukia < 20) {
+        fprintf(output, "Eilėje laukia %d klientų. ", laukia);
+    }
+    else if (laukia % 10 == 1){
+        fprintf(output, "Eilėje laukia %d klientas. ", laukia);
     }
     else {
-        fprintf(output, "\tEilėje laukia %d klientų. ", laukia);
+        fprintf(output, "Eilėje laukia %d klientai. ", laukia);
     }
     while (p_current) {
         value = p_current->value;
@@ -476,6 +509,7 @@ int getFreeEmployeeNumber(bool dirbantysDarbuotojai[]) {
 void countEmployeeWage(PriorityQueue *eile, bool overtime) {
     PriorityQueue *p_current = eile->p_next;
     Data value;
+    // fprintf(output, "Alga= %d\n", algos);
     algos += U * K;
     if (overtime) {
         while (p_current) {
@@ -487,20 +521,43 @@ void countEmployeeWage(PriorityQueue *eile, bool overtime) {
 
 }
 
-void printFixingQueue(PriorityQueue *eile) {
+void outputFixingQueue(PriorityQueue *eile, int fixN) {
     PriorityQueue *p_current = eile->p_next;
     Data value;
-    //fprintf(output, "Taisomu masinu klientu nr: ");
-    //printf("Taisomu masinu klientu nr: ");
-    //fprintf(output, "eile adr: %u  ", eile);
+
+    fprintf(output, "\t%d) ", outputCnt++);
+    if (fixN == 0) fprintf(output, "Taisoma 0 mašinų.\n");
+    else if (fixN == 1) fprintf(output, "Taisoma 1 mašina. ");
+    else if (fixN < 10) fprintf(output, "Taisomos %d mašinos. ", fixN);
+    else fprintf(output, "Taisoma %d mašinų. ", fixN);
+
     while (p_current) {
         value = p_current->value;
         //fprintf(output, "K%d adr: %u  ", value.klientoNr, p_current);
-        if (value.VIP) fprintf(output, "V%d, ", value.klientoNr);
-        else fprintf(output, "K%d, ", value.klientoNr);
+        if (value.VIP) fprintf(output, "V%d", value.klientoNr);
+        else fprintf(output, "K%d", value.klientoNr);
+        if (p_current->p_next) fprintf(output, ", ");
+        else fprintf(output, ".\n");
         // if (value.VIP) printf("V%d, ", value.klientoNr);
         // else printf("K%d, ", value.klientoNr);
         p_current = p_current->p_next;
     }
     fprintf(output, "\n");
+}
+
+void printFixingQueue(PriorityQueue *eile, int fixN) {
+    PriorityQueue *p_current = eile->p_next;
+    Data value;
+    while (p_current) {
+        value = p_current->value;
+        //fprintf(output, "K%d adr: %u  ", value.klientoNr, p_current);
+        if (value.VIP) printf("V%d", value.klientoNr);
+        else printf("K%d", value.klientoNr);
+        if (p_current->p_next) printf(", ");
+        else printf(".\n");
+        // if (value.VIP) printf("V%d, ", value.klientoNr);
+        // else printf("K%d, ", value.klientoNr);
+        p_current = p_current->p_next;
+    }
+    printf("\n");
 }
